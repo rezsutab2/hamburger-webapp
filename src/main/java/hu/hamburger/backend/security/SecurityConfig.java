@@ -12,6 +12,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import java.util.List;
+
 @Configuration
 public class SecurityConfig {
 
@@ -20,20 +22,22 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        //Ez a metódus mondja meg a Spring Security-nek hogyan viselkedjen
         http
+                .cors(cors -> cors.configurationSource(request -> {
+                    var corsConfig = new org.springframework.web.cors.CorsConfiguration();
+                    corsConfig.setAllowedOrigins(List.of("http://localhost:5173"));
+                    corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
+                    corsConfig.setAllowedHeaders(List.of("*"));
+                    return corsConfig;
+                }))
                 .csrf(csrf -> csrf.disable())
-                //A CSRF védelmet kikapcsoljuk – REST API-nál nincs rá szükség, mert JWT tokent használunk.
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                //Megmondjuk hogy ne használjon session-t – minden kérésnél a JWT token azonosítja a felhasználót.
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/menu").permitAll()
                         .anyRequest().authenticated())
-                //megmondja mely végpontok érhetők el bejelentkezés nélkül
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-        //Berakja a JwtFilter-t a filterláncba – minden kérésnél lefut.
 
         return http.build();
     }
