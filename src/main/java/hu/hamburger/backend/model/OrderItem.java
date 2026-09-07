@@ -25,6 +25,10 @@ public class OrderItem {
         return order;
     }
 
+    public void setOrder(Order order) {
+        this.order = order;
+    }
+
     public MenuItem getMenuItem() {
         return menuItem;
     }
