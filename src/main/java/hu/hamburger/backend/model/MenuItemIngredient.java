@@ -8,7 +8,7 @@ import jakarta.persistence.*;
 public class MenuItemIngredient {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
     @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "menu_item_id")
@@ -18,7 +18,7 @@ public class MenuItemIngredient {
     private Ingredient ingredient;
     private double quantity;
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 

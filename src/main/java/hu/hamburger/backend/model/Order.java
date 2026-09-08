@@ -1,40 +1,52 @@
 package hu.hamburger.backend.model;
 
 import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
 @Table(name = "orders")
 public class Order {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
+
     @ManyToOne
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
+
     private String note;
+
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
-    @OneToMany(mappedBy = "order")
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items;
 
-    public long getId() {
+    // --- getterek / setterek ---
+
+    public Long getId() {
         return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public User getUser() {
         return user;
     }
 
-    public OrderStatus getStatus() {
-        return status;
-    }
-
     public void setUser(User user) {
         this.user = user;
+    }
+
+    public OrderStatus getStatus() {
+        return status;
     }
 
     public void setStatus(OrderStatus status) {
@@ -55,10 +67,6 @@ public class Order {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
-    }
-
-    public void setId(long id) {
-        this.id = id;
     }
 
     public List<OrderItem> getItems() {

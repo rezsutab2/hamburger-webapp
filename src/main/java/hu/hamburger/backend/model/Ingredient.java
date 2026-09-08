@@ -7,12 +7,12 @@ import jakarta.persistence.*;
 public class Ingredient {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
     private String name;
     private String unit;
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 

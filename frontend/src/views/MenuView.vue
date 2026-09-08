@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import { addToCart } from '@/store/cart'
 
 const menuItems = ref([])
 
@@ -20,6 +21,9 @@ onMounted(async () => {
             <h5 class="card-title">{{ item.name }}</h5>
             <p class="card-text">{{ item.description }}</p>
             <p class="card-text"><strong>{{ item.price }} Ft</strong></p>
+            <button class="btn btn-primary" @click="addToCart(item)">
+              Kosárba
+            </button>
           </div>
         </div>
       </div>

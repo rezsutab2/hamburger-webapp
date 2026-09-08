@@ -40,6 +40,9 @@ const logout = () => {
             <li class="nav-item">
                 <span class="nav-link text-light">{{ userName }}</span>
             </li>
+            <li>
+              <RouterLink class="nav-link" to="/cart">Kosaram</RouterLink>
+            </li>
             <li class="nav-item">
                 <button class="btn btn-outline-light ms-2" @click="logout">Kijelentkezés</button>
             </li>
