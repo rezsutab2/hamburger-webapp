@@ -21,6 +21,19 @@ public class ReservationService {
     private RestaurantTableRepository tableRepository;
 
     public Reservation createReservation(Reservation reservation) {
+        //Explicit ellenőrzés, hogy a hivatkozott asztal létezik-e, mielőtt bármit csinálnánk vele -
+        //enélkül a DB-szintű foreign key constraint dobna hibát, ami 400-at adna 404 helyett.
+        Long tableId = (reservation.getTable() != null) ? reservation.getTable().getId() : null;
+        RestaurantTable table = (tableId != null)
+                ? tableRepository.findById(tableId)
+                  .orElseThrow(() -> new ResourceNotFoundException("Asztal nem található: " + tableId))
+                : null;
+
+        if (table == null) {
+            throw new ResourceNotFoundException("Asztal nem található.");
+        }
+        reservation.setTable(table); //a teljes, DB-ből betöltött entitást használjuk tovább
+
         boolean tableTaken = reservationRepository
                 .findByTableAndDateAndStartTime(
                         reservation.getTable(),

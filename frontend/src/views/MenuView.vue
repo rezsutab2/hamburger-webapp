@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { addToCart } from '@/store/cart'
+import { getQuantityInCart } from '@/store/cart'
 
 const menuItems = ref([])
 
@@ -21,8 +22,12 @@ onMounted(async () => {
             <h5 class="card-title">{{ item.name }}</h5>
             <p class="card-text">{{ item.description }}</p>
             <p class="card-text"><strong>{{ item.price }} Ft</strong></p>
-            <button class="btn btn-primary" @click="addToCart(item)">
+            <button class="btn btn-primary position-relative" @click="addToCart(item)">
               Kosárba
+              <span v-if="getQuantityInCart(item.id) > 0" 
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                {{ getQuantityInCart(item.id) }}
+              </span>
             </button>
           </div>
         </div>

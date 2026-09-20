@@ -32,3 +32,12 @@ export function clearCart() {
 export function cartTotal() {
   return cart.items.reduce((sum, i) => sum + i.price * i.quantity, 0)
 }
+
+export function getQuantityInCart(menuItemId) {
+  const existing = cart.items.find(i => i.menuItemId === menuItemId)
+  return existing ? existing.quantity : 0
+}
+
+export function totalItemCount() {
+  return cart.items.reduce((sum, i) => sum + i.quantity, 0)
+}

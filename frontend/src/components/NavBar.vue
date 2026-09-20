@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { jwtDecode } from 'jwt-decode'
 import axios from 'axios'
+import { totalItemCount } from '@/store/cart'
 
 const router = useRouter()
 const token = localStorage.getItem('token')
@@ -41,7 +42,12 @@ const logout = () => {
                 <span class="nav-link text-light">{{ userName }}</span>
             </li>
             <li>
-              <RouterLink class="nav-link" to="/cart">Kosaram</RouterLink>
+              <RouterLink class="nav-link position-relative" to="/cart">
+                Kosaram
+                <span v-if="totalItemCount() > 0" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                  {{ totalItemCount() }}
+                </span>
+              </RouterLink>
             </li>
             <li class="nav-item">
                 <button class="btn btn-outline-light ms-2" @click="logout">Kijelentkezés</button>

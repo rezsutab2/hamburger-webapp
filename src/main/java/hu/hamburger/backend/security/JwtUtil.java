@@ -1,40 +1,92 @@
 package hu.hamburger.backend.security;
 
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.Key;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Date;
 
-//Token létrehozásáért és ellenőrzéséért felelős osztály
 @Component
 public class JwtUtil {
 
-    private final Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256); //titkos kulcs a tokenhez
-    private final long EXPIRATION = 1000 * 60 * 60 * 24; // 24 óra alatt jár le a token
+    @Value("${jwt.secret:}")
+    private String secret;
 
-    public String generateToken(String email) { //Maga a tokengenerálás email-címhez rendelve
+    private static final Path LOCAL_SECRET_FILE = Path.of("jwt-secret.local");
+
+    private Key key;
+
+    private final long EXPIRATION = 1000 * 60 * 60 * 24;
+
+    @PostConstruct
+    public void init() {
+        String resolvedSecret = (secret != null && !secret.isBlank())
+                ? secret
+                : loadOrCreateLocalSecret();
+
+        this.key = Keys.hmacShaKeyFor(Base64.getDecoder().decode(resolvedSecret));
+    }
+
+    private String loadOrCreateLocalSecret() {
+        try {
+            if (Files.exists(LOCAL_SECRET_FILE)) {
+                String existing = Files.readString(LOCAL_SECRET_FILE).trim();
+                if (isValidSecret(existing)) {
+                    return existing;
+                }
+            }
+
+            byte[] randomBytes = new byte[64];
+            new SecureRandom().nextBytes(randomBytes);
+            String generated = Base64.getEncoder().encodeToString(randomBytes);
+
+            Files.writeString(LOCAL_SECRET_FILE, generated);
+            return generated;
+        } catch (IOException e) {
+            throw new IllegalStateException(
+                    "Nem sikerült létrehozni/beolvasni a jwt-secret.local fájlt. " +
+                            "Alternatívaként állítsd be a JWT_SECRET környezeti változót.", e);
+        }
+    }
+
+    private boolean isValidSecret(String candidate) {
+        if (candidate == null || candidate.isBlank()) {
+            return false;
+        }
+        try {
+            return Base64.getDecoder().decode(candidate).length >= 32;
+        } catch (IllegalArgumentException notValidBase64) {
+            return false;
+        }
+    }
+
+    public String generateToken(String email) {
         return Jwts.builder()
-                .setSubject(email) //kinek szól a token
-                .setIssuedAt(new Date()) //mikor lett létrehozva
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION)) //mikor jár le
-                .signWith(key) //aláírás a titkos kulccsal
-                .compact(); //összecsomagolás String-gé
+                .setSubject(email)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
+                .signWith(key)
+                .compact();
     }
 
-    public String extractEmail(String token) { //Beérkező kérésből az tokent vizsgálva azonosítja az emailt
-                                                //Így tudjuk, hogy ki küldte a kérést
+    public String extractEmail(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(key) //kulcs alapján ellenőriz
+                .setSigningKey(key)
                 .build()
-                .parseClaimsJws(token) //kibontja a tokent
+                .parseClaimsJws(token)
                 .getBody()
-                .getSubject(); //kiszedi belőle az email-t az azonosításhoz
+                .getSubject();
     }
 
-    public boolean validateToken(String token) { //token érvényességének ellenőrzése. Hiba esetén false-t dob
+    public boolean validateToken(String token) {
         try {
             extractEmail(token);
             return true;
