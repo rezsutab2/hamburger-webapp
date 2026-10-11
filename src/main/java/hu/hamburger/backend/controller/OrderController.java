@@ -1,6 +1,8 @@
 package hu.hamburger.backend.controller;
 
+import hu.hamburger.backend.dto.StatusUpdateRequest;
 import hu.hamburger.backend.model.Order;
+import hu.hamburger.backend.model.OrderStatus;
 import hu.hamburger.backend.model.User;
 import hu.hamburger.backend.service.OrderService;
 import hu.hamburger.backend.repository.OrderRepository;
@@ -27,13 +29,11 @@ public class OrderController {
     @Autowired
     private UserRepository userRepository;
 
-    // Segédmetódus: a bejelentkezett user lekérése a JWT-ből (email alapján)
     private User getCurrentUser(UserDetails userDetails) {
         return userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new ResourceNotFoundException("Felhasználó nem található"));
     }
 
-    // Rendelés leadása
     @PostMapping
     public Order placeOrder(@RequestBody Order order, @AuthenticationPrincipal UserDetails userDetails) {
         User user = getCurrentUser(userDetails);
@@ -41,14 +41,12 @@ public class OrderController {
         return orderService.placeOrder(order);
     }
 
-    // Saját rendelések lekérése
     @GetMapping
     public List<Order> getMyOrders(@AuthenticationPrincipal UserDetails userDetails) {
         User user = getCurrentUser(userDetails);
         return orderRepository.findByUserId(user.getId());
     }
 
-    // Egy rendelés részletei
     @GetMapping("/{id}")
     public Order getOrderById(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
         User user = getCurrentUser(userDetails);
@@ -60,5 +58,21 @@ public class OrderController {
         }
 
         return order;
+    }
+
+    @GetMapping("/all")
+    public List<Order> getAllOrders() {
+        return orderService.getAllOrders();
+    }
+
+    @PutMapping("/{id}/status")
+    public Order updateOrderStatus(@PathVariable Long id, @RequestBody StatusUpdateRequest request) {
+        OrderStatus status;
+        try {
+            status = OrderStatus.valueOf(request.status());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Érvénytelen állapot: " + request.status());
+        }
+        return orderService.updateStatus(id, status);
     }
 }

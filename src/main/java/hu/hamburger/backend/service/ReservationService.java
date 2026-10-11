@@ -21,8 +21,6 @@ public class ReservationService {
     private RestaurantTableRepository tableRepository;
 
     public Reservation createReservation(Reservation reservation) {
-        //Explicit ellenőrzés, hogy a hivatkozott asztal létezik-e, mielőtt bármit csinálnánk vele -
-        //enélkül a DB-szintű foreign key constraint dobna hibát, ami 400-at adna 404 helyett.
         Long tableId = (reservation.getTable() != null) ? reservation.getTable().getId() : null;
         RestaurantTable table = (tableId != null)
                 ? tableRepository.findById(tableId)
@@ -75,5 +73,15 @@ public class ReservationService {
         Reservation reservation = getReservationById(id);
         reservation.setStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
+    }
+
+    public List<Reservation> getAllReservations() {
+        return reservationRepository.findAll();
+    }
+
+    public Reservation updateStatus(Long id, ReservationStatus status) {
+        Reservation reservation = getReservationById(id);
+        reservation.setStatus(status);
+        return reservationRepository.save(reservation);
     }
 }

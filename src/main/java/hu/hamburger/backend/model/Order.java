@@ -27,8 +27,6 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items;
 
-    // --- getterek / setterek ---
-
     public Long getId() {
         return id;
     }

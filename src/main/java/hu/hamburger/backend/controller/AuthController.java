@@ -1,5 +1,6 @@
 package hu.hamburger.backend.controller;
 
+import hu.hamburger.backend.model.Role;
 import hu.hamburger.backend.model.User;
 import hu.hamburger.backend.repository.UserRepository;
 import hu.hamburger.backend.security.JwtUtil;
@@ -31,7 +32,7 @@ public class AuthController {
     @PostMapping("/register")
     public String register(@RequestBody User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setRole("USER");
+        user.setRole(Role.USER);
         userRepository.save(user);
         return "Sikeres regisztráció!";
     }
@@ -43,6 +44,9 @@ public class AuthController {
                         credentials.get("email"),
                         credentials.get("password")));
 
-        return jwtUtil.generateToken(credentials.get("email"));
+        User user = userRepository.findByEmail(credentials.get("email"))
+                .orElseThrow(() -> new RuntimeException("Felhasználó nem található"));
+
+        return jwtUtil.generateToken(user.getEmail(), user.getRole().name());
     }
 }

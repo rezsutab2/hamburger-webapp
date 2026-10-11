@@ -1,6 +1,7 @@
 package hu.hamburger.backend;
 
 import hu.hamburger.backend.model.RestaurantTable;
+import hu.hamburger.backend.model.Role;
 import hu.hamburger.backend.model.User;
 import hu.hamburger.backend.repository.RestaurantTableRepository;
 import hu.hamburger.backend.repository.UserRepository;
@@ -49,20 +50,17 @@ class ReservationControllerTest {
         user.setName("Teszt Elek");
         user.setEmail("teszt@teszt.hu");
         user.setPassword(passwordEncoder.encode("jelszo123"));
-        user.setRole("USER");
+        user.setRole(Role.USER);
         userRepository.save(user);
 
         String token = jwtUtil.generateToken(user.getEmail());
         authHeader = "Bearer " + token;
 
         RestaurantTable table = new RestaurantTable();
-        //FONTOS: nincs kézzel beállított table_number, mert @Transactional mellett az
-        //IDENTITY (auto-increment) számláló NEM gördül vissza a tranzakcióval együtt -
-        //ha itt fix értéket adnánk meg, a második/harmadik teszt UNIQUE constraint hibát kapna.
         table.setTableNumber((int) (System.nanoTime() % 1_000_000));
         table.setCapacity(4);
         table = tableRepository.save(table);
-        existingTableId = table.getId(); //a ténylegesen generált id-t használjuk a kérésekben
+        existingTableId = table.getId();
     }
 
     @Test

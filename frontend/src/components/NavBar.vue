@@ -1,16 +1,24 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { jwtDecode } from 'jwt-decode'
 import axios from 'axios'
 import { totalItemCount } from '@/store/cart'
+import { jwtDecode } from 'jwt-decode'
 
 const router = useRouter()
 const token = localStorage.getItem('token')
 const isLoggedIn = ref(!!token)
 const userName = ref('')
+const isAdmin = ref(false)
 
 if (token) {
+  try {
+    const decoded = jwtDecode(token)
+    isAdmin.value = decoded.role === 'ADMIN'
+  } catch (e) {
+    isAdmin.value = false
+  }
+
   axios.get('http://localhost:8080/api/user/me', {
     headers: { Authorization: `Bearer ${token}` }
   }).then(response => {
@@ -48,6 +56,12 @@ const logout = () => {
                   {{ totalItemCount() }}
                 </span>
               </RouterLink>
+            </li>
+            <li>
+              <RouterLink class="nav-link" to="/reservations">Asztalfoglalás</RouterLink>
+            </li>
+            <li v-if="isAdmin">
+              <RouterLink class="nav-link" to="/admin">Admin</RouterLink>
             </li>
             <li class="nav-item">
                 <button class="btn btn-outline-light ms-2" @click="logout">Kijelentkezés</button>

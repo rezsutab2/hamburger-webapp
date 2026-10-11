@@ -1,5 +1,6 @@
 package hu.hamburger.backend.controller;
 
+import hu.hamburger.backend.dto.StatusUpdateRequest;
 import hu.hamburger.backend.model.Reservation;
 import hu.hamburger.backend.model.ReservationStatus;
 import hu.hamburger.backend.model.User;
@@ -68,5 +69,21 @@ public class ReservationController {
         }
 
         reservationService.cancelReservation(id);
+    }
+
+    @GetMapping("/all")
+    public List<Reservation> getAllReservations() {
+        return reservationService.getAllReservations();
+    }
+
+    @PutMapping("/{id}/status")
+    public Reservation updateReservationStatus(@PathVariable Long id, @RequestBody StatusUpdateRequest request) {
+        ReservationStatus status;
+        try {
+            status = ReservationStatus.valueOf(request.status());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Érvénytelen állapot: " + request.status());
+        }
+        return reservationService.updateStatus(id, status);
     }
 }

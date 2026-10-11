@@ -13,7 +13,9 @@ public class User {
     private String email;
     @JsonIgnore
     private String password;
-    private String role;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
 
     public Long getId() {
         return id;
@@ -44,11 +46,7 @@ public class User {
         this.password = password;
     }
 
-    public String getRole() {
-        return role;
-    }
+    public Role getRole() { return role; }
 
-    public void setRole(String role) {
-        this.role = role;
-    }
+    public void setRole(Role role) { this.role = role; }
 }
