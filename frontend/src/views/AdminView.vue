@@ -9,9 +9,11 @@ function authHeaders() {
 
 const activeTab = ref('menu')
 
+// ---- Menü ----
 const menuItems = ref([])
+const ingredients = ref([])
 const editingItem = ref(null)
-const menuForm = ref({ name: '', description: '', price: 0, available: true })
+const menuForm = ref({ name: '', description: '', price: 0, available: true, menuItemIngredient: [] })
 const menuError = ref('')
 
 async function loadMenu() {
@@ -19,14 +21,28 @@ async function loadMenu() {
   menuItems.value = response.data
 }
 
+async function loadIngredients() {
+  const response = await axios.get('http://localhost:8080/api/ingredients', { headers: authHeaders() })
+  ingredients.value = response.data
+}
+
 function startEdit(item) {
   editingItem.value = item.id
-  menuForm.value = { name: item.name, description: item.description, price: item.price, available: item.available }
+  menuForm.value = {
+    name: item.name,
+    description: item.description,
+    price: item.price,
+    available: item.available,
+    menuItemIngredient: (item.menuItemIngredient || []).map(mii => ({
+      ingredientId: mii.ingredient.id,
+      quantity: mii.quantity
+    }))
+  }
 }
 
 function startNew() {
   editingItem.value = 'new'
-  menuForm.value = { name: '', description: '', price: 0, available: true }
+  menuForm.value = { name: '', description: '', price: 0, available: true, menuItemIngredient: [] }
 }
 
 function cancelEdit() {
@@ -34,13 +50,40 @@ function cancelEdit() {
   menuError.value = ''
 }
 
+function addIngredientRow() {
+  menuForm.value.menuItemIngredient.push({ ingredientId: null, quantity: 0 })
+}
+
+function removeIngredientRow(index) {
+  menuForm.value.menuItemIngredient.splice(index, 1)
+}
+
+function ingredientName(id) {
+  const ing = ingredients.value.find(i => i.id === id)
+  return ing ? `${ing.name} (${ing.unit})` : ''
+}
+
 async function saveMenuItem() {
   menuError.value = ''
+
+  const payload = {
+    name: menuForm.value.name,
+    description: menuForm.value.description,
+    price: menuForm.value.price,
+    available: menuForm.value.available,
+    menuItemIngredient: menuForm.value.menuItemIngredient
+      .filter(row => row.ingredientId)
+      .map(row => ({
+        ingredient: { id: row.ingredientId },
+        quantity: row.quantity
+      }))
+  }
+
   try {
     if (editingItem.value === 'new') {
-      await axios.post('http://localhost:8080/api/menu', menuForm.value, { headers: authHeaders() })
+      await axios.post('http://localhost:8080/api/menu', payload, { headers: authHeaders() })
     } else {
-      await axios.put(`http://localhost:8080/api/menu/${editingItem.value}`, menuForm.value, { headers: authHeaders() })
+      await axios.put(`http://localhost:8080/api/menu/${editingItem.value}`, payload, { headers: authHeaders() })
     }
     editingItem.value = null
     await loadMenu()
@@ -61,6 +104,7 @@ async function deleteMenuItem(id) {
   }
 }
 
+// ---- Rendelések ----
 const orders = ref([])
 const orderStatuses = ['PENDING', 'CONFIRMED', 'READY', 'COMPLETED', 'CANCELLED']
 
@@ -78,6 +122,7 @@ async function updateOrderStatus(order, newStatus) {
   }
 }
 
+// ---- Foglalások ----
 const reservations = ref([])
 const reservationStatuses = ['PENDING', 'CONFIRMED', 'CANCELLED']
 
@@ -97,9 +142,15 @@ async function updateReservationStatus(reservation, newStatus) {
 
 onMounted(() => {
   loadMenu()
+  loadIngredients()
   loadOrders()
   loadReservations()
 })
+
+function hasUnit(ingredientId) {
+  const ing = ingredients.value.find(i => i.id === ingredientId)
+  return !!ing?.unit
+}
 </script>
 
 <template>
@@ -140,17 +191,45 @@ onMounted(() => {
               <label class="form-check-label" for="availableCheck">Elérhető</label>
             </div>
           </div>
-          <div class="col-md-1 d-flex gap-1">
-            <button class="btn btn-success btn-sm" @click="saveMenuItem">Mentés</button>
+        </div>
+
+        <hr />
+        <h6>Összetevők</h6>
+        <div v-for="(row, index) in menuForm.menuItemIngredient" :key="index" class="row g-2 mb-2 align-items-center">
+          <div class="col-md-5">
+            <select v-model="row.ingredientId" class="form-select">
+              <option :value="null" disabled>Válassz összetevőt</option>
+              <option v-for="ing in ingredients" :key="ing.id" :value="ing.id">
+                {{ ing.unit ? `${ing.name} (${ing.unit})` : ing.name }}
+              </option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <input
+              v-if="hasUnit(row.ingredientId)"
+              v-model.number="row.quantity"
+              type="number"
+              step="0.01"
+              class="form-control"
+              placeholder="Mennyiség"
+            />
+          </div>
+          <div class="col-md-3">
+            <button class="btn btn-outline-danger btn-sm" @click="removeIngredientRow(index)">Eltávolítás</button>
           </div>
         </div>
-        <button class="btn btn-outline-secondary btn-sm mt-2" style="width: fit-content" @click="cancelEdit">Mégse</button>
+        <button class="btn btn-outline-secondary btn-sm mb-3" @click="addIngredientRow">+ Összetevő hozzáadása</button>
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-success btn-sm" @click="saveMenuItem">Mentés</button>
+          <button class="btn btn-outline-secondary btn-sm" @click="cancelEdit">Mégse</button>
+        </div>
       </div>
 
       <table class="table">
         <thead>
           <tr>
-            <th>Név</th><th>Leírás</th><th>Ár</th><th>Elérhető</th><th></th>
+            <th>Név</th><th>Leírás</th><th>Ár</th><th>Elérhető</th><th>Összetevők</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -159,6 +238,15 @@ onMounted(() => {
             <td>{{ item.description }}</td>
             <td>{{ item.price }} Ft</td>
             <td>{{ item.available ? 'Igen' : 'Nem' }}</td>
+            <td>
+              <span v-if="!item.menuItemIngredient || item.menuItemIngredient.length === 0" class="text-muted">—</span>
+              <span v-else>
+                {{ item.menuItemIngredient.map(mii =>
+                mii.ingredient.unit
+                ? `${mii.ingredient.name} (${mii.quantity} ${mii.ingredient.unit})`
+                : mii.ingredient.name).join(', ') }}
+              </span>
+            </td>
             <td class="d-flex gap-2">
               <button class="btn btn-outline-primary btn-sm" @click="startEdit(item)">Szerkesztés</button>
               <button class="btn btn-outline-danger btn-sm" @click="deleteMenuItem(item.id)">Törlés</button>

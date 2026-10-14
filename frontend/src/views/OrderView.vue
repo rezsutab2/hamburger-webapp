@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
-import { cart, removeFromCart, clearCart, cartTotal } from '@/store/cart'
+import { cart, removeFromCart, increaseQuantity, decreaseQuantity, clearCart, cartTotal } from '@/store/cart'
 
 const router = useRouter()
 const note = ref('')
@@ -66,7 +66,13 @@ async function submitOrder() {
         <tbody>
           <tr v-for="item in cart.items" :key="item.menuItemId">
             <td>{{ item.name }}</td>
-            <td>{{ item.quantity }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-sm btn-outline-secondary" @click="decreaseQuantity(item.menuItemId)">−</button>
+                <span>{{ item.quantity }}</span>
+                <button class="btn btn-sm btn-outline-secondary" @click="increaseQuantity(item.menuItemId)">+</button>
+              </div>
+            </td>
             <td>{{ item.price }} Ft</td>
             <td>{{ item.price * item.quantity }} Ft</td>
             <td>

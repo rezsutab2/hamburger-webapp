@@ -25,6 +25,24 @@ export function removeFromCart(menuItemId) {
   }
 }
 
+export function increaseQuantity(menuItemId) {
+  const existing = cart.items.find(i => i.menuItemId === menuItemId)
+  if (existing) {
+    existing.quantity++
+  }
+}
+
+export function decreaseQuantity(menuItemId) {
+  const existing = cart.items.find(i => i.menuItemId === menuItemId)
+  if (existing) {
+    if (existing.quantity <= 1) {
+      removeFromCart(menuItemId)
+    } else {
+      existing.quantity--
+    }
+  }
+}
+
 export function clearCart() {
   cart.items = []
 }
