@@ -58,6 +58,9 @@ const logout = () => {
               </RouterLink>
             </li>
             <li>
+              <RouterLink class="nav-link" to="/orders">Rendeléseim</RouterLink>
+            </li>
+            <li>
               <RouterLink class="nav-link" to="/reservations">Asztalfoglalás</RouterLink>
             </li>
             <li v-if="isAdmin">

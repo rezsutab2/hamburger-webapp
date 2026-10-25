@@ -7,9 +7,14 @@ function authHeaders() {
   return { Authorization: `Bearer ${token}` }
 }
 
+function errorText(err, fallback) {
+  const data = err.response?.data
+  return (typeof data === 'string' ? data : data?.message) || fallback
+}
+
 const activeTab = ref('menu')
 
-// ---- Menü ----
+// Menü
 const menuItems = ref([])
 const ingredients = ref([])
 const editingItem = ref(null)
@@ -63,6 +68,11 @@ function ingredientName(id) {
   return ing ? `${ing.name} (${ing.unit})` : ''
 }
 
+function hasUnit(ingredientId) {
+  const ing = ingredients.value.find(i => i.id === ingredientId)
+  return !!ing?.unit
+}
+
 async function saveMenuItem() {
   menuError.value = ''
 
@@ -104,25 +114,109 @@ async function deleteMenuItem(id) {
   }
 }
 
-// ---- Rendelések ----
+// Összetevők / allergének
+const allergens = ref([])
+const editingIngredient = ref(null)
+const isNewIngredient = ref(false)
+const ingredientForm = ref({ name: '', unit: '' })
+const selectedAllergenIds = ref([])
+const ingredientError = ref('')
+
+async function loadAllergens() {
+  const response = await axios.get('http://localhost:8080/api/allergens', { headers: authHeaders() })
+  allergens.value = response.data
+}
+
+function startNewIngredient() {
+  cancelEditIngredient()
+  isNewIngredient.value = true
+  ingredientForm.value = { name: '', unit: '' }
+}
+
+function startEditIngredient(ingredient) {
+  isNewIngredient.value = false
+  editingIngredient.value = ingredient.id
+  ingredientForm.value = { name: ingredient.name, unit: ingredient.unit || '' }
+  selectedAllergenIds.value = (ingredient.allergens || []).map(a => a.id)
+}
+
+function cancelEditIngredient() {
+  editingIngredient.value = null
+  isNewIngredient.value = false
+  ingredientError.value = ''
+}
+
+async function saveNewIngredient() {
+  ingredientError.value = ''
+  try {
+    await axios.post('http://localhost:8080/api/ingredients', ingredientForm.value, { headers: authHeaders() })
+    isNewIngredient.value = false
+    await loadIngredients()
+  } catch (err) {
+    ingredientError.value = errorText(err, 'Hiba történt a mentés közben.')
+    console.error(err)
+  }
+}
+
+async function saveIngredient(ingredientId) {
+  ingredientError.value = ''
+  try {
+    await axios.put(`http://localhost:8080/api/ingredients/${ingredientId}`, ingredientForm.value, { headers: authHeaders() })
+    await axios.put(
+      `http://localhost:8080/api/ingredients/${ingredientId}/allergens`,
+      selectedAllergenIds.value,
+      { headers: authHeaders() }
+    )
+    editingIngredient.value = null
+    await loadIngredients()
+    await loadMenu()
+  } catch (err) {
+    ingredientError.value = errorText(err, 'Hiba történt a mentés közben.')
+    console.error(err)
+  }
+}
+
+async function deleteIngredient(ingredient) {
+  if (!confirm(`Biztosan törlöd ezt az összetevőt: ${ingredient.name}?`)) return
+  ingredientError.value = ''
+  try {
+    await axios.delete(`http://localhost:8080/api/ingredients/${ingredient.id}`, { headers: authHeaders() })
+    await loadIngredients()
+  } catch (err) {
+    ingredientError.value = errorText(err, 'Hiba történt a törlés közben.')
+    console.error(err)
+  }
+}
+
+function allergenNames(ingredient) {
+  if (!ingredient.allergens || ingredient.allergens.length === 0) return '—'
+  return ingredient.allergens.map(a => a.name).join(', ')
+}
+
+// Rendelések
 const orders = ref([])
 const orderStatuses = ['PENDING', 'CONFIRMED', 'READY', 'COMPLETED', 'CANCELLED']
+const orderError = ref('')
 
 async function loadOrders() {
   const response = await axios.get('http://localhost:8080/api/orders/all', { headers: authHeaders() })
   orders.value = response.data
 }
 
-async function updateOrderStatus(order, newStatus) {
+async function updateOrderStatus(order, newStatus, event) {
+  orderError.value = ''
+  const previous = order.status
   try {
     await axios.put(`http://localhost:8080/api/orders/${order.id}/status`, { status: newStatus }, { headers: authHeaders() })
     order.status = newStatus
   } catch (err) {
+    event.target.value = previous
+    orderError.value = errorText(err, 'Az állapot módosítása nem sikerült.')
     console.error(err)
   }
 }
 
-// ---- Foglalások ----
+// Foglalások
 const reservations = ref([])
 const reservationStatuses = ['PENDING', 'CONFIRMED', 'CANCELLED']
 
@@ -143,14 +237,10 @@ async function updateReservationStatus(reservation, newStatus) {
 onMounted(() => {
   loadMenu()
   loadIngredients()
+  loadAllergens()
   loadOrders()
   loadReservations()
 })
-
-function hasUnit(ingredientId) {
-  const ing = ingredients.value.find(i => i.id === ingredientId)
-  return !!ing?.unit
-}
 </script>
 
 <template>
@@ -167,9 +257,11 @@ function hasUnit(ingredientId) {
       <li class="nav-item">
         <button class="nav-link" :class="{ active: activeTab === 'reservations' }" @click="activeTab = 'reservations'">Foglalások</button>
       </li>
+      <li class="nav-item">
+        <button class="nav-link" :class="{ active: activeTab === 'ingredients' }" @click="activeTab = 'ingredients'">Összetevők</button>
+      </li>
     </ul>
 
-    <!-- MENÜ -->
     <div v-if="activeTab === 'menu'">
       <button class="btn btn-primary mb-3" @click="startNew">Új tétel</button>
       <div v-if="menuError" class="alert alert-danger">{{ menuError }}</div>
@@ -256,8 +348,84 @@ function hasUnit(ingredientId) {
       </table>
     </div>
 
-    <!-- RENDELÉSEK -->
+    <div v-if="activeTab === 'ingredients'">
+      <button class="btn btn-primary mb-3" @click="startNewIngredient">Új összetevő</button>
+      <div v-if="ingredientError" class="alert alert-danger">{{ ingredientError }}</div>
+
+      <div v-if="isNewIngredient" class="card mb-3 p-3">
+        <div class="row g-2">
+          <div class="col-md-5">
+            <input v-model="ingredientForm.name" class="form-control" placeholder="Név" />
+          </div>
+          <div class="col-md-3">
+            <input v-model="ingredientForm.unit" class="form-control" placeholder="Mértékegység (üres = nincs)" list="unit-options" />
+          </div>
+          <div class="col-md-4 d-flex gap-2">
+            <button class="btn btn-success btn-sm" @click="saveNewIngredient">Mentés</button>
+            <button class="btn btn-outline-secondary btn-sm" @click="cancelEditIngredient">Mégse</button>
+          </div>
+        </div>
+        <div class="form-text mt-2">Az allergéneket a mentés után, a "Szerkesztés" gombbal tudod hozzárendelni.</div>
+      </div>
+
+      <datalist id="unit-options">
+        <option value="g" />
+        <option value="db" />
+        <option value="ml" />
+      </datalist>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Név</th><th>Mértékegység</th><th>Allergének</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="ing in ingredients" :key="ing.id">
+            <template v-if="editingIngredient === ing.id">
+              <td>
+                <input v-model="ingredientForm.name" class="form-control form-control-sm" placeholder="Név" />
+              </td>
+              <td>
+                <input v-model="ingredientForm.unit" class="form-control form-control-sm" placeholder="üres = nincs" list="unit-options" />
+              </td>
+              <td>
+                <div class="d-flex flex-wrap gap-2">
+                  <div v-for="allergen in allergens" :key="allergen.id" class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      :id="`allergen-${ing.id}-${allergen.id}`"
+                      :value="allergen.id"
+                      v-model="selectedAllergenIds"
+                    />
+                    <label class="form-check-label" :for="`allergen-${ing.id}-${allergen.id}`">
+                      {{ allergen.name }}
+                    </label>
+                  </div>
+                </div>
+              </td>
+              <td class="text-nowrap">
+                <button class="btn btn-success btn-sm me-2" @click="saveIngredient(ing.id)">Mentés</button>
+                <button class="btn btn-outline-secondary btn-sm" @click="cancelEditIngredient">Mégse</button>
+              </td>
+            </template>
+            <template v-else>
+              <td>{{ ing.name }}</td>
+              <td>{{ ing.unit || '—' }}</td>
+              <td>{{ allergenNames(ing) }}</td>
+              <td class="text-nowrap">
+                <button class="btn btn-outline-primary btn-sm me-2" @click="startEditIngredient(ing)">Szerkesztés</button>
+                <button class="btn btn-outline-danger btn-sm" @click="deleteIngredient(ing)">Törlés</button>
+              </td>
+            </template>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <div v-if="activeTab === 'orders'">
+      <div v-if="orderError" class="alert alert-danger">{{ orderError }}</div>
       <table class="table">
         <thead>
           <tr>
@@ -270,7 +438,7 @@ function hasUnit(ingredientId) {
             <td>{{ order.user?.name }}</td>
             <td>{{ order.note }}</td>
             <td>
-              <select class="form-select form-select-sm" :value="order.status" @change="updateOrderStatus(order, $event.target.value)">
+              <select class="form-select form-select-sm" :value="order.status" @change="updateOrderStatus(order, $event.target.value, $event)">
                 <option v-for="status in orderStatuses" :key="status" :value="status">{{ status }}</option>
               </select>
             </td>
@@ -279,7 +447,6 @@ function hasUnit(ingredientId) {
       </table>
     </div>
 
-    <!-- FOGLALÁSOK -->
     <div v-if="activeTab === 'reservations'">
       <table class="table">
         <thead>

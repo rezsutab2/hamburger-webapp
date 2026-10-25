@@ -34,7 +34,7 @@ async function submitOrder() {
     })
 
     clearCart()
-    router.push('/')
+    router.push('/orders')
   } catch (err) {
     errorMessage.value = 'Hiba történt a rendelés leadása közben.'
     console.error(err)
